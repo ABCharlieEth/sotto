@@ -1,4 +1,4 @@
-# Shielded Checkout
+# Sotto Pay
 
 Accept private Zcash payments with a link.
 
