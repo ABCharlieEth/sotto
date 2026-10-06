@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shielded Checkout</title>
+<meta name="description" content="Accept private Zcash payments with a link. Non-custodial: you share a viewing key, never a spending key.">
+<link rel="stylesheet" href="/app.css"></head>
+<body>
+<header class="top"><a class="brand" href="/"><span class="shield" aria-hidden="true"></span>Shielded Checkout</a><span class="net" id="net">...</span><a class="btn ghost" href="/merchant">Dashboard</a></header>
+<main>
+  <section class="grid">
+    <div>
+      <p class="eyebrow">Private payments for Zcash</p>
+      <h1>Get paid in shielded ZEC with <span class="hl">a single link</span>.</h1>
+      <p class="lede">Create an invoice, share the link or QR. Your customer pays from any Zcash wallet. You see it arrive, privately, without giving anyone your keys.</p>
+      <ul class="points">
+        <li><b>Non-custodial.</b> Funds go straight to your own wallet. We only hold a viewing key, which can see incoming payments but can never spend them.</li>
+        <li><b>Private by default.</b> Shielded payments: amounts and parties stay encrypted on chain. Each invoice gets its own address and memo.</li>
+        <li><b>Built for shops.</b> Live payment page, confirmation tracking, and a webhook to your store when an order is paid.</li>
+      </ul>
+    </div>
+    <article class="card">
+      <h2>Start accepting ZEC</h2>
+      <p class="muted">Paste your wallet's unified full viewing key. It starts with <span class="mono" id="pfx">uview1</span>.</p>
+      <form id="signup">
+        <label for="name">Shop name</label><input id="name" required maxlength="60" placeholder="Corner Coffee">
+        <label for="ufvk">Unified full viewing key</label><textarea id="ufvk" required spellcheck="false" placeholder="uview1..."></textarea>
+        <label for="hook">Webhook URL (optional)</label><input id="hook" type="url" placeholder="https://yourshop.example/zec-paid">
+        <button class="btn primary wide" id="go">Create my checkout</button>
+        <p class="err" id="err" role="alert"></p>
+      </form>
+      <div id="done" hidden>
+        <p class="note"><b>Your checkout is ready.</b> Save this API key now; it is shown only once.</p>
+        <label>API key</label><div class="secret"><code class="mono" id="key"></code></div>
+        <label>Receiving address</label><p class="mono" id="addr"></p>
+        <a class="btn primary wide" href="/merchant">Open my dashboard</a>
+      </div>
+    </article>
+  </section>
+</main>
+<footer class="foot">Open source. Payments are detected with zcash-devtool against a public light-wallet server.</footer>
+<script src="/common.js"></script>
+<script>
+api("/api/health").then(h => { $("pfx").textContent = h.network === "main" ? "uview1" : "uviewtest1"; $("ufvk").placeholder = $("pfx").textContent + "..."; });
+$("signup").onsubmit = async e => {
+  e.preventDefault(); $("err").textContent = ""; $("go").disabled = true; $("go").textContent = "Checking your key...";
+  try {
+    const r = await api("/api/merchants", { method: "POST", body: JSON.stringify({ name: $("name").value, ufvk: $("ufvk").value.trim(), webhook: $("hook").value.trim() }) });
+    try { localStorage.setItem("zc_key", r.api_key); } catch (_) {}
+    $("key").textContent = r.api_key; $("key").parentNode.appendChild(copyBtn(r.api_key));
+    $("addr").textContent = r.address; $("signup").hidden = true; $("done").hidden = false;
+  } catch (x) { $("err").textContent = x.message; }
+  finally { $("go").disabled = false; $("go").textContent = "Create my checkout"; }
+};
+</script>
+</body></html>

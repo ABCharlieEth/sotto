@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Checkout Dashboard</title><link rel="stylesheet" href="/app.css"></head>
+<body>
+<header class="top"><a class="brand" href="/"><span class="shield" aria-hidden="true"></span>Shielded Checkout</a><span class="net" id="net">...</span></header>
+<main>
+  <section id="login" class="card" style="max-width:460px" hidden>
+    <h2>Open your dashboard</h2><p class="muted">Enter the API key you saved when you set up your checkout.</p>
+    <label for="k">API key</label><input id="k" placeholder="zck_...">
+    <button class="btn primary wide" id="enter">Open</button><p class="err" id="lerr" role="alert"></p>
+  </section>
+  <section id="dash" hidden>
+    <div class="grid">
+      <div>
+        <p class="eyebrow" id="shop"></p>
+        <h1>Invoices</h1>
+        <table><thead><tr><th>Invoice</th><th>Amount</th><th>Status</th><th>Created</th></tr></thead><tbody id="rows"></tbody></table>
+        <p class="muted" id="empty" style="margin-top:14px">No invoices yet. Create your first one.</p>
+      </div>
+      <article class="card">
+        <h2>New invoice</h2><p class="muted">Share the link or QR with your customer.</p>
+        <form id="new">
+          <label for="amt">Amount (<span class="tick">ZEC</span>)</label><input id="amt" inputmode="decimal" required placeholder="0.05">
+          <label for="lbl">What it is for</label><input id="lbl" maxlength="80" placeholder="2 coffees">
+          <label for="ref">Order reference (optional)</label><input id="ref" maxlength="80" placeholder="#1042">
+          <button class="btn primary wide" id="mk">Create invoice</button><p class="err" id="nerr" role="alert"></p>
+        </form>
+        <div id="made" hidden><p class="note"><b>Invoice ready.</b></p><label>Payment link</label><p class="mono" id="link"></p><a class="btn primary wide" id="open" target="_blank" rel="noopener">Open payment page</a></div>
+      </article>
+    </div>
+  </section>
+</main>
+<script src="/common.js"></script>
+<script>
+let KEY = ""; try { KEY = localStorage.getItem("zc_key") || ""; } catch (_) {}
+const auth = () => ({ authorization: "Bearer " + KEY });
+async function load() {
+  try {
+    const r = await api("/api/invoices", { headers: auth() });
+    $("login").hidden = true; $("dash").hidden = false; $("shop").textContent = r.merchant.name;
+    $("empty").hidden = r.invoices.length > 0;
+    $("rows").innerHTML = r.invoices.map(i => `<tr><td><a href="/pay/${esc(i.id)}" target="_blank" rel="noopener">${esc(i.label || i.id)}</a>${i.order_ref ? `<br><span class="muted">${esc(i.order_ref)}</span>` : ""}</td><td>${esc(i.amount)} ${esc(i.ticker)}</td><td><span class="pill ${esc(i.status)}">${esc(i.status)}</span></td><td>${new Date(i.created * 1000).toLocaleString()}</td></tr>`).join("");
+    document.querySelectorAll(".tick").forEach(t => t.textContent = (r.invoices[0] || {}).ticker || t.textContent);
+  } catch (x) { $("dash").hidden = true; $("login").hidden = false; if (KEY) $("lerr").textContent = x.message; }
+}
+$("enter").onclick = () => { KEY = $("k").value.trim(); try { localStorage.setItem("zc_key", KEY); } catch (_) {} load(); };
+$("new").onsubmit = async e => {
+  e.preventDefault(); $("nerr").textContent = ""; $("mk").disabled = true;
+  try {
+    const i = await api("/api/invoices", { method: "POST", headers: auth(), body: JSON.stringify({ amount: $("amt").value.trim(), label: $("lbl").value, order_ref: $("ref").value }) });
+    const url = location.origin + "/pay/" + i.id; $("link").textContent = url; $("open").href = url; $("made").hidden = false; load();
+  } catch (x) { $("nerr").textContent = x.message; } finally { $("mk").disabled = false; }
+};
+load(); setInterval(() => { if (!$("dash").hidden) load(); }, 10000);
+</script>
+</body></html>

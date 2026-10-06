@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pay with Zcash</title><link rel="stylesheet" href="/app.css"></head>
+<body>
+<header class="top"><span class="brand"><span class="shield" aria-hidden="true"></span>Shielded Checkout</span><span class="net" id="net">...</span></header>
+<main>
+  <article class="card pay" id="card">
+    <p class="muted" id="label">Loading...</p>
+    <div class="amount" id="amount"></div>
+    <div class="status" id="status"><span class="dot"></span><span id="stext"></span></div>
+    <div class="qr" id="qr" aria-label="Payment QR code"></div>
+    <a class="btn primary wide" id="wallet" href="#">Open in Zcash wallet</a>
+    <dl class="rows">
+      <div><dt>Send to</dt><dd class="mono" id="addr"></dd></div>
+      <div><dt>Memo</dt><dd class="mono" id="memo"></dd></div>
+      <div><dt>Expires</dt><dd id="exp"></dd></div>
+      <div id="txrow" hidden><dt>Transaction</dt><dd class="mono" id="tx"></dd></div>
+    </dl>
+    <p class="note">Pay from a shielded wallet (Zashi, Zingo, YWallet). Scanning the QR fills in the address, amount and memo for you.</p>
+  </article>
+</main>
+<script src="/common.js"></script><script src="/vendor/qrcode.js"></script>
+<script>
+const ID = location.pathname.split("/").pop();
+const TXT = { open: "Waiting for payment", seen: "Payment received, confirming", paid: "Paid", expired: "Expired", underpaid: "Partly paid" };
+let drawn = false;
+async function tick() {
+  try {
+    const i = await api("/api/invoices/" + encodeURIComponent(ID));
+    $("label").textContent = i.label || "Invoice " + i.id;
+    $("amount").innerHTML = esc(i.amount) + "<small>" + esc(i.ticker) + "</small>";
+    $("card").className = "card pay st-" + i.status;
+    $("stext").textContent = TXT[i.status] + (i.status === "seen" ? " (" + i.confirmations + " of " + i.needed + ")" : "") + (i.status === "underpaid" ? ": " + i.received + " of " + i.amount + " " + i.ticker : "");
+    if (!drawn) {
+      const q = qrcode(0, "M"); q.addData(i.uri); q.make(); $("qr").innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+      $("wallet").href = i.uri; $("addr").textContent = i.address; $("addr").appendChild(copyBtn(i.address));
+      $("memo").textContent = i.memo + " "; $("memo").appendChild(copyBtn(i.memo)); drawn = true;
+    }
+    $("exp").textContent = i.status === "paid" ? "Paid " + new Date(i.paid_at * 1000).toLocaleString() : new Date(i.expires * 1000).toLocaleTimeString();
+    if (i.txid) { $("txrow").hidden = false; $("tx").textContent = i.txid.slice(0, 18) + "..."; }
+    const done = i.status === "paid" || i.status === "expired";
+    $("qr").style.opacity = done ? .25 : 1; $("wallet").hidden = done;
+    if (!done) setTimeout(tick, 5000);
+  } catch (x) { $("label").textContent = x.message; }
+}
+tick();
+</script>
+</body></html>
