@@ -11,3 +11,5 @@ POLL = int(os.environ.get("ZC_POLL", "15"))                 # seconds between wa
 PUBLIC_URL = os.environ.get("ZC_PUBLIC_URL", "")           # used in links handed to merchants
 TICKER = "TAZ" if NETWORK == "test" else "ZEC"
 UFVK_PREFIX = "uviewtest1" if NETWORK == "test" else "uview1"
+MAX_MERCHANTS = int(os.environ.get("ZC_MAX_MERCHANTS", "30"))   # sign-up cap for a public demo
+SIGNUPS_PER_IP_HOUR = int(os.environ.get("ZC_SIGNUPS_PER_IP_HOUR", "3"))

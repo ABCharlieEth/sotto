@@ -7,6 +7,7 @@ from . import config, db, devtool, watcher, zip321
 PUBLIC = os.path.join(os.path.dirname(os.path.dirname(__file__)), "public")
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon"}
 ID = re.compile(r"^[A-Za-z0-9]{6,32}$")
+SIGNUPS = {}
 
 def new_id(n=10):
     a = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -68,6 +69,13 @@ class H(BaseHTTPRequestHandler):
         try: b = self.body()
         except Exception: return self.send(400, {"error": "bad json"})
         if p == "/api/merchants":
+            # every merchant is a wallet this server syncs: a public demo caps the total and the rate per visitor
+            ip = self.headers.get("cf-connecting-ip") or self.client_address[0]
+            now = time.time(); SIGNUPS[ip] = [t for t in SIGNUPS.get(ip, []) if now - t < 3600]
+            if len(SIGNUPS[ip]) >= config.SIGNUPS_PER_IP_HOUR: return self.send(429, {"error": "too many sign-ups, try again later"})
+            if (db.q("SELECT COUNT(*) AS n FROM merchants", one=True)["n"]) >= config.MAX_MERCHANTS:
+                return self.send(503, {"error": "the demo is full"})
+            SIGNUPS[ip].append(now)
             name = str(b.get("name") or "").strip()[:60]; ufvk = str(b.get("ufvk") or "").strip()
             hook = str(b.get("webhook") or "").strip()[:300] or None
             if not name or not re.fullmatch(re.escape(config.UFVK_PREFIX) + r"[0-9a-z]{100,2000}", ufvk):
