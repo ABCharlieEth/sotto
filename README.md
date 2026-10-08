@@ -1,4 +1,10 @@
-# Sotto Pay
+# Sotto
+
+Private Zcash payments for real shops, and a live view of the network they run on.
+
+Sotto has two parts in one app: **Pay**, a shielded checkout, and **Pulse**, a live dashboard of the Zcash network.
+
+## Pay
 
 Accept private Zcash payments with a link.
 
@@ -13,6 +19,20 @@ to the invoice, tracks confirmations and calls the merchant's webhook.
 - **No dependencies**: Python 3 standard library. Wallet scanning uses
   [zcash-devtool](https://github.com/zcash/zcash-devtool) against a public light-wallet server.
 
+## Pulse
+
+`/pulse` shows the health of Zcash mainnet: how much ZEC is shielded, the value of every pool (Orchard, Sapling, Sprout,
+lockbox, transparent) and its history, the ZEC still in Sprout ahead of NU7, which pools mined the last day of blocks,
+and the network's pace.
+
+- Data: [zcashexplorer.app](https://mainnet.zcashexplorer.app) (`getblockchaininfo`: value pools, upgrades) and
+  [Blockchair](https://blockchair.com/zcash) (price, 24 h activity, per-block coinbase tags), fetched server-side and
+  cached; a half-hourly snapshot builds the shielded-share history.
+- Mining pools are read from the tag each pool writes into the coinbase; untagged blocks are shown as untagged, never
+  guessed.
+- Pulse always shows mainnet, whatever network the checkout runs on. Blockchair's free tier allows ~1440 requests a
+  day, so run the refresher in one instance only and point others at it with `ZC_PULSE_UPSTREAM`.
+
 ## Run
 
 ```sh
@@ -25,7 +45,7 @@ ZC_NETWORK=test ZC_DEVTOOL=/path/to/zcash-devtool/target/release/zcash-devtool p
 
 Settings (environment): `ZC_NETWORK` (`test`|`main`), `ZC_LWD` (light-wallet operator, default `zecrocks`),
 `ZC_PORT`, `ZC_DATA`, `ZC_CONFIRMATIONS` (default 2), `ZC_INVOICE_TTL` (seconds, default 3600), `ZC_POLL`,
-`ZC_PUBLIC_URL`.
+`ZC_PUBLIC_URL`, `ZC_PULSE_UPSTREAM` (another Sotto that refreshes Pulse), `ZC_NU7_TARGET`.
 
 ## API
 
@@ -36,6 +56,7 @@ Settings (environment): `ZC_NETWORK` (`test`|`main`), `ZC_LWD` (light-wallet ope
 | GET | `/api/invoices` | `Bearer <api_key>` | the merchant's invoices |
 | GET | `/api/invoices/<id>` | none | public invoice status (for the payment page) |
 | GET | `/api/health` | none | network, chain tip, last scan |
+| GET | `/api/pulse` | none | the Pulse dashboard data (mainnet) |
 
 Invoice status: `open` -> `seen` (in a block) -> `paid` (confirmed), or `underpaid` / `expired`.
 Webhook (on `paid`): `POST {event: "invoice.paid", invoice, order_ref, amount_zat, received_zat, txid, confirmations, network}`.

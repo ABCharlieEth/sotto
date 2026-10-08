@@ -1,8 +1,8 @@
-"""HTTP API and static files. Run: python3 -m zcheckout.server"""
+"""Sotto: HTTP API and static files for the checkout (Pay) and the network view (Pulse). Run: python3 -m zcheckout.server"""
 import hashlib, json, os, secrets, time, re
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse
-from . import config, db, devtool, watcher, zip321
+from . import config, db, devtool, pulse, watcher, zip321
 
 PUBLIC = os.path.join(os.path.dirname(os.path.dirname(__file__)), "public")
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon"}
@@ -46,6 +46,8 @@ class H(BaseHTTPRequestHandler):
         if p == "/api/health":
             return self.send(200, {"network": config.NETWORK, "ticker": config.TICKER, "tip": watcher.STATE["tip"],
                                    "last_scan": watcher.STATE["last"], "error": watcher.STATE["error"]})
+        if p == "/api/pulse":
+            return self.send(200, pulse.pulse())
         if p.startswith("/api/invoices/"):
             i = p.rsplit("/", 1)[-1]
             r = db.q("SELECT * FROM invoices WHERE id=?", (i,), one=True) if ID.match(i) else None
@@ -59,6 +61,7 @@ class H(BaseHTTPRequestHandler):
         # static: /pay/<id> and /merchant are single pages
         if p.startswith("/pay/"): p = "/pay.html"
         if p == "/merchant": p = "/merchant.html"
+        if p == "/pulse": p = "/pulse.html"
         if p == "/": p = "/index.html"
         f = os.path.normpath(os.path.join(PUBLIC, p.lstrip("/")))
         if not f.startswith(PUBLIC) or not os.path.isfile(f): return self.send(404, {"error": "not found"})
@@ -112,7 +115,7 @@ class H(BaseHTTPRequestHandler):
         return self.send(404, {"error": "not found"})
 
 def main():
-    db.db(); watcher.start()
+    db.db(); watcher.start(); pulse.start()
     s = ThreadingHTTPServer(("127.0.0.1", config.PORT), H)
     print(f"zcheckout on 127.0.0.1:{config.PORT} ({config.NETWORK})", flush=True)
     s.serve_forever()
