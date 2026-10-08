@@ -14,11 +14,17 @@ def _webhook(m, inv):
     except Exception:
         return False
 
+# Expired invoices stay watched for a while: a payment that lands late is still the merchant's money and must show up.
+WATCHED = "(status IN ('open','seen','underpaid') OR (status = 'expired' AND expires > ?))"
+
+def late_cutoff():
+    return int(time.time()) - config.LATE_WINDOW
+
 def scan_merchant(m):
     devtool.sync(m["id"])
     tip = devtool.tip(m["id"])
     outs = devtool.received(m["id"])
-    open_inv = {r["id"]: r for r in db.q("SELECT * FROM invoices WHERE merchant_id=? AND status IN ('open','seen','underpaid')", (m["id"],))}
+    open_inv = {r["id"]: r for r in db.q("SELECT * FROM invoices WHERE merchant_id=? AND " + WATCHED, (m["id"], late_cutoff()))}
     by_addr = {r["address"]: r for r in open_inv.values()}
     for o in outs:
         if db.q("SELECT 1 FROM seen_outputs WHERE txid=? AND pool=? AND idx=?", (o["txid"], o["pool"], o["index"]), one=True):
@@ -33,7 +39,7 @@ def scan_merchant(m):
         db.x("UPDATE invoices SET received_zat = received_zat + ?, txid = ?, mined_height = ? WHERE id = ?",
              (o["value"], o["txid"], o["height"], inv["id"]))
     now = int(time.time())
-    for inv in db.q("SELECT * FROM invoices WHERE merchant_id=? AND status IN ('open','seen','underpaid')", (m["id"],)):
+    for inv in db.q("SELECT * FROM invoices WHERE merchant_id=? AND " + WATCHED, (m["id"], late_cutoff())):
         conf = (tip - inv["mined_height"] + 1) if inv["mined_height"] else 0
         if inv["received_zat"] >= inv["amount_zat"]:
             status = "paid" if conf >= config.CONFIRMATIONS else "seen"
@@ -56,7 +62,7 @@ def loop():
         try:
             for m in db.q("SELECT * FROM merchants"):
                 # only merchants with something to watch, to keep the light-wallet server load small
-                if db.q("SELECT 1 FROM invoices WHERE merchant_id=? AND status IN ('open','seen','underpaid')", (m["id"],), one=True):
+                if db.q("SELECT 1 FROM invoices WHERE merchant_id=? AND " + WATCHED, (m["id"], late_cutoff()), one=True):
                     STATE["tip"] = scan_merchant(m)
             STATE["last"] = int(time.time()); STATE["error"] = None
         except Exception as e:
