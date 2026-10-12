@@ -1,0 +1,47 @@
+From 2c7af6c258ad8dc313a9827f142c453eb9cbe09f Mon Sep 17 00:00:00 2001
+From: Sotto <dev@sotto.cash>
+Date: Mon, 12 Oct 2026 16:54:14 +0000
+Subject: [PATCH] wallet generate-address: a --shielded-only flag
+ (UnifiedAddressRequest::SHIELDED), so payment systems minting one address per
+ invoice are not stopped by the transparent gap limit when invoices expire
+ unpaid
+
+---
+ src/commands/wallet/gen_addr.rs | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/commands/wallet/gen_addr.rs b/src/commands/wallet/gen_addr.rs
+index 7677f75..8290ecd 100644
+--- a/src/commands/wallet/gen_addr.rs
++++ b/src/commands/wallet/gen_addr.rs
+@@ -24,6 +24,12 @@ pub(crate) struct Command {
+     #[cfg(feature = "qr")]
+     #[arg(long, default_value = "true")]
+     display_qr: bool,
++
++    /// Generate an address with shielded receivers only (no transparent component).
++    /// Shielded diversified addresses are not subject to the transparent gap limit,
++    /// so generation never blocks on an unused transparent receiver being mined.
++    #[arg(long, default_value = "false")]
++    shielded_only: bool,
+ }
+ 
+ impl Command {
+@@ -35,8 +41,13 @@ impl Command {
+         let account = select_account(&db_data, self.account_id)?;
+ 
+         println!("Account {:?}", account.id());
++        let request = if self.shielded_only {
++            UnifiedAddressRequest::SHIELDED
++        } else {
++            UnifiedAddressRequest::AllAvailableKeys
++        };
+         let (ua, _) = db_data
+-            .get_next_available_address(account.id(), UnifiedAddressRequest::AllAvailableKeys)?
++            .get_next_available_address(account.id(), request)?
+             .unwrap();
+         let ua_str = ua.encode(&params);
+         println!("     Address: {ua_str}");
+-- 
+2.43.0
+
