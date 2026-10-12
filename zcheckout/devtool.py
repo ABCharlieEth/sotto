@@ -24,7 +24,10 @@ def init_view_only(merchant_id, name, ufvk, birthday=None):
 def new_address(merchant_id):
     """A fresh diversified Unified Address for the merchant's account: one per invoice, so a payment is matched
     by the address it arrived at even when the payer's wallet drops the memo."""
-    out = run("wallet", "-w", wallet_dir(merchant_id), "generate-address", timeout=60)
+    # shielded receivers only: a transparent component would put every invoice address under the transparent
+    # gap limit, which blocks once a few invoices expire unpaid (found on mainnet, 2026-10-12). Shielded
+    # diversified addresses have no such limit, and a payment-only address has no business being transparent
+    out = run("wallet", "-w", wallet_dir(merchant_id), "generate-address", "--shielded-only", timeout=60)
     m = re.findall(r"\b(u(?:test)?1[0-9a-z]{100,})\b", out)
     if m: return m[-1]
     return first_address(merchant_id)
