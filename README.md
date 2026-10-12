@@ -14,6 +14,12 @@ QR code. The customer pays from any Zcash wallet; the server syncs the merchant'
 to the invoice, tracks confirmations and calls the merchant's webhook.
 
 - **Non-custodial**: funds go straight to the merchant's wallet. The server never holds a spending key.
+
+**Proven on mainnet.** On 12 October 2026 a real invoice (0.001 ZEC) was paid from a phone wallet to a running
+Sotto instance: scanned from the invoice QR, sent shielded, detected within one block and marked paid at two
+confirmations. The transaction is
+[`a0d1b29acb1888f5d3fa95ef1f73929ed6310eb8cc8241904a033dfcd3a90230`](https://mainnet.zcashexplorer.app/transactions/a0d1b29acb1888f5d3fa95ef1f73929ed6310eb8cc8241904a033dfcd3a90230)
+on chain, it reveals nothing about the amount, the payer or the merchant, and that is the point.
 - **Private**: shielded (Orchard/Sapling) payments; one address per invoice, so payments are matched even if a wallet
   drops the memo.
 - **No dependencies**: Python 3 standard library. Wallet scanning uses
