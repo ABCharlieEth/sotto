@@ -38,6 +38,9 @@ and the network's pace.
 ```sh
 # 1. build zcash-devtool (Rust)
 git clone https://github.com/zcash/zcash-devtool && cd zcash-devtool && cargo build --release
+# Sotto asks it for shielded-only invoice addresses (a --shielded-only flag on wallet generate-address,
+# one small patch carried in our fork). On an unpatched build Sotto still runs, but every invoice
+# reuses the merchant's first address and payments are matched by memo and amount alone.
 # 2. run the checkout
 ZC_NETWORK=test ZC_DEVTOOL=/path/to/zcash-devtool/target/release/zcash-devtool python3 -m zcheckout.server
 # open http://127.0.0.1:8920
